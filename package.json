@@ -1,0 +1,12 @@
+{
+  "name": "solana-sniper-bot",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "dependencies": {
+    "moment": "^2.30.1"
+  }
+}
