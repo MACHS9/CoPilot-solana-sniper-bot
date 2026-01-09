@@ -1,29 +1,13 @@
 // src/components/dashboard/StatsPanel.jsx
 
-import { useEffect, useState } from "react";
 import Panel from "../ui/Panel";
 import usePhantom from "../../hooks/usePhantom";
 
 export default function StatsPanel() {
-  const { publicKey, connected, getBalance } = usePhantom();
-  const [balance, setBalance] = useState(0);
-
-  useEffect(() => {
-    const loadBalance = async () => {
-      if (connected) {
-        await new Promise(r => setTimeout(r, 300));
-        const sol = await getBalance();
-        setBalance(sol.toFixed(3));
-      } else {
-        setBalance(0);
-      }
-    };
-
-    loadBalance();
-  }, [connected]);
+  const { solBalance } = usePhantom();
 
   const stats = [
-    { label: "SOL Balance", value: `${balance} SOL` },
+    { label: "SOL Balance", value: `${solBalance.toFixed(3)} SOL` },
     { label: "SOL Price", value: "$98.22" },
     { label: "Network TPS", value: "3,912" },
     { label: "Ping", value: "42ms" },

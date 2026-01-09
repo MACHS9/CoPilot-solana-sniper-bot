@@ -1,30 +1,12 @@
 // src/components/layout/Header.jsx
 
-import { useEffect, useState } from "react";
 import usePhantom from "../../hooks/usePhantom";
 import Button from "../ui/Button";
 import { useLocation } from "react-router-dom";
 
 export default function Header() {
   const location = useLocation();
-  const { connect, disconnect, publicKey } = usePhantom();
-  const [connected, setConnected] = useState(false);
-
-  useEffect(() => {
-    if (window.solana && window.solana.isConnected) {
-      setConnected(true);
-    } else {
-      setConnected(false);
-    }
-
-    window.solana?.on("connect", () => setConnected(true));
-    window.solana?.on("disconnect", () => setConnected(false));
-
-    return () => {
-      window.solana?.removeAllListeners("connect");
-      window.solana?.removeAllListeners("disconnect");
-    };
-  }, []);
+  const { connect, disconnect, publicKey, connected, solBalance } = usePhantom();
 
   const titles = {
     "/": "Dashboard",
@@ -46,9 +28,17 @@ export default function Header() {
         {connected ? (
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+
+            {/* عنوان المحفظة */}
             <span className="text-sm text-gray-300">
               {publicKey?.slice(0, 4)}...{publicKey?.slice(-4)}
             </span>
+
+            {/* رصيد SOL */}
+            <span className="text-sm text-yellow-400 font-semibold">
+              {solBalance.toFixed(3)} SOL
+            </span>
+
             <Button variant="secondary" onClick={disconnect}>
               Disconnect
             </Button>

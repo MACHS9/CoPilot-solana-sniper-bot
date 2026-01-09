@@ -3,15 +3,28 @@
 import { useState, useEffect } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
 
-// استخدم RPC سريع وثابت
-const RPC_URL = "https://rpc.ankr.com/solana";
-const connection = new Connection(RPC_URL, "confirmed");
+// 3 RPCs — Fallback system (CORS-friendly)
+const RPCs = [
+  "https://rpc.ankr.com/solana",
+  "https://solana-mainnet.rpc.extrnode.com",
+  "https://rpc.publicnode.com"
+];
 
-// نختار Phantom فقط
+// Pick a random RPC each time
+function getConnection() {
+  const url = RPCs[Math.floor(Math.random() * RPCs.length)];
+  return new Connection(url, "confirmed");
+}
+
+// Phantom-only provider
 const getPhantomProvider = () => {
   if ("solana" in window) {
     const provider = window.solana;
-    if (provider?.isPhantom) return provider;
+
+    // Ignore TronLink, Binance, Solflare, Backpack, etc.
+    if (provider?.isPhantom === true) {
+      return provider;
+    }
   }
   return null;
 };
@@ -19,7 +32,22 @@ const getPhantomProvider = () => {
 export default function usePhantom() {
   const [publicKey, setPublicKey] = useState(null);
   const [connected, setConnected] = useState(false);
+  const [solBalance, setSolBalance] = useState(0);
 
+  // Fetch SOL balance
+  const fetchBalance = async (address) => {
+    try {
+      const connection = getConnection();
+      const lamports = await connection.getBalance(new PublicKey(address));
+      const sol = lamports / 1e9;
+      setSolBalance(sol);
+    } catch (err) {
+      console.error("Balance error:", err);
+      setSolBalance(0);
+    }
+  };
+
+  // Connect Phantom
   const connect = async () => {
     const provider = getPhantomProvider();
     if (!provider) {
@@ -28,14 +56,21 @@ export default function usePhantom() {
     }
 
     try {
-      const resp = await provider.connect();
-      setPublicKey(resp.publicKey.toString());
+      const resp = await provider.connect({ onlyIfTrusted: false });
+      const address = resp.publicKey.toString();
+
+      setPublicKey(address);
       setConnected(true);
+
+      // Delay to allow Phantom to update session
+      setTimeout(() => fetchBalance(address), 300);
+
     } catch (err) {
       console.error("Phantom connect error:", err);
     }
   };
 
+  // Disconnect Phantom
   const disconnect = async () => {
     const provider = getPhantomProvider();
     if (!provider) return;
@@ -44,28 +79,37 @@ export default function usePhantom() {
       await provider.disconnect();
       setPublicKey(null);
       setConnected(false);
+      setSolBalance(0);
     } catch (err) {
       console.error("Phantom disconnect error:", err);
     }
   };
 
+  // Auto-detect connection on load
   useEffect(() => {
     const provider = getPhantomProvider();
     if (!provider) return;
 
     if (provider.isConnected && provider.publicKey) {
-      setPublicKey(provider.publicKey.toString());
+      const address = provider.publicKey.toString();
+      setPublicKey(address);
       setConnected(true);
+
+      setTimeout(() => fetchBalance(address), 300);
     }
 
     provider.on("connect", () => {
-      setPublicKey(provider.publicKey.toString());
+      const address = provider.publicKey.toString();
+      setPublicKey(address);
       setConnected(true);
+
+      setTimeout(() => fetchBalance(address), 300);
     });
 
     provider.on("disconnect", () => {
       setPublicKey(null);
       setConnected(false);
+      setSolBalance(0);
     });
 
     return () => {
@@ -74,23 +118,11 @@ export default function usePhantom() {
     };
   }, []);
 
-  const getBalance = async () => {
-    if (!publicKey) return 0;
-
-    try {
-      const balanceLamports = await connection.getBalance(new PublicKey(publicKey));
-      return balanceLamports / 1e9;
-    } catch (err) {
-      console.error("Balance error:", err);
-      return 0;
-    }
-  };
-
   return {
     publicKey,
     connected,
+    solBalance,
     connect,
     disconnect,
-    getBalance,
   };
 }
